@@ -3,7 +3,7 @@
 Plugin Name: Scriblio MARC File Connector
 Plugin URI: http://about.scriblio.net/
 Description: Imports MARC records into Scriblio, provides functions used by other importers.
-Version: .02
+Version: .02a
 Author: Casey Bisson
 Author URI: http://maisonbisson.com/blog/
 */
@@ -29,7 +29,7 @@ class Scrib_marc {
 	var $importer_code = 'scribmarc';
 	var $importer_name = 'Scriblio MARC File Connector';
 	var $importer_desc = 'Imports MARC records into Scriblio, provides functions used by other importers. <a href="http://about.scriblio.net/wiki">Documentation here</a>.';
-	
+
 	// Function that will handle the wizard-like behaviour
 	function dispatch() {
 		if( empty ($_GET['step']))
@@ -74,7 +74,7 @@ class Scrib_marc {
 		echo '<p>'.__('Howdy! Start here to import MARC records into Scriblio.').'</p>';
 		echo '<p>'.__('This has not been tested much. Mileage may vary.').'</p>';
 
-		echo '<br /><br />';	
+		echo '<br /><br />';
 		wp_import_upload_form("admin.php?import=$this->importer_code&amp;step=1");
 		echo '</div>';
 	}
@@ -98,7 +98,7 @@ class Scrib_marc {
 
 	function options(){
 		global $file;
-	
+
 		if(empty($this->id)){
 			$file = wp_import_handle_upload();
 			if(  isset($file['error']) ) {
@@ -109,20 +109,16 @@ class Scrib_marc {
 			$this->file = $file['file'];
 			$this->id = (int) $file['id'];
 		}
-	
+
 		$prefs = get_option('scrib_marcimporter');
 
 		echo '<div class="narrow">';
-		echo '<p>'.__('MARC file options.').'</p>';
-
-		echo '<p>'.__('All Scriblio records have a &#039;sourceid,&#039; a unique alphanumeric string that&#039;s used to avoid creating duplicate records and, in some installations, link back to the source system for current availability information.').'</p>';
-		echo '<p>'.__('The sourceid is made up of two parts: the prefix that you assign, and a ID info from the source record. Many systems assign unique numbers to each record, the challenge is figuring out which field to use.').'</p>';
+		echo '<p>'.__('The source prefix is a unique, two-character string that you use to identify the system the records came from. Records with the same prefix will be matched against previous uploads to prevent duplicates.').'</p>';
 
 		echo '<form name="myform" id="myform" action="admin.php?import='. $this->importer_code .'&amp;id='. $this->id .'&amp;step=2" method="post">';
 ?>
 <p><label for="scrib_marc-sourceprefix">The source prefix:<br /><input type="text" name="scrib_marc-sourceprefix" id="scrib_marc-sourceprefix" value="<?php echo attribute_escape( $prefs['scrib_marc-sourceprefix'] ); ?>" /><br />example: bb (must be two characters, a-z and 0-9 accepted)</label></p>
-<p><label for="scrib_marc-sourcefield">The source ID field:<br /><input type="text" name="scrib_marc-sourcefield" id="scrib_marc-sourcefield" value="<?php echo attribute_escape( $prefs['scrib_marc-sourcefield'] ); ?>" /><br />example: to use barcodes from Infocenter: [852][0]->subfields['p']<br /> or to use the the Project Gutenburg ID: ['000'][0]->data<br /> or to use the LCCN: ['001'][0]->data</label></p>
-<p><br /><br /><label for="scrib_marc-record_start">Start with record number:<br /><input type="text" name="scrib_marc-record_start" id="scrib_marc-record_start" value="<?php echo attribute_escape( $prefs['scrib_marc-record_start'] ); ?>" /></label></p>
+<p><label for="scrib_marc-record_start">Start with record number:<br /><input type="text" name="scrib_marc-record_start" id="scrib_marc-record_start" value="<?php echo attribute_escape( $prefs['scrib_marc-record_start'] ); ?>" /></label></p>
 <p><label for="scrib_marc-debug"><input type="checkbox" name="scrib_marc-debug" id="scrib_marc-debug" value="1" /> Turn on debug mode.</label></p>
 <?php
 		echo '<p class="submit"><input type="submit" name="next" value="'.__('Next &raquo;').'" /></p>';
@@ -144,7 +140,7 @@ class Scrib_marc {
 		$this->id = (int) $_GET['id'];
 		$this->file = get_attached_file($this->id);
 
-		if(empty($_POST['scrib_marc-sourceprefix']) || empty($_POST['scrib_marc-sourcefield']) || empty($this->file)){
+		if( empty( $_POST['scrib_marc-sourceprefix'] ) || empty( $this->file )){
 			echo '<p>'.__('Sorry, there has been an error.').'</p>';
 			echo '<p><strong>Please complete all fields</strong></p>';
 			return;
@@ -153,7 +149,6 @@ class Scrib_marc {
 		// save these settings so we can try them again later
 		$prefs = get_option('scrib_marcimporter');
 		$prefs['scrib_marc-sourceprefix'] = stripslashes($_POST['scrib_marc-sourceprefix']);
-		$prefs['scrib_marc-sourcefield'] = stripslashes($_POST['scrib_marc-sourcefield']);
 		update_option('scrib_marcimporter', $prefs);
 
 		error_reporting(E_ERROR);
@@ -172,20 +167,18 @@ class Scrib_marc {
 
 			$record = $file->next();
 
-			echo '<h3>The MARC Record:</h3><pre>';			
+			echo '<h3>The MARC Record:</h3><pre>';
 			print_r($record->fields());
 
 			echo '</pre><h3>The Tags and Display Record:</h3><pre>';
 			print_r( $this->parse_record( $record->fields() ));
 			echo '</pre>';
 
-			echo '<h3>The SourceID: '. $test_pancake['the_sourceid'] .'</h3>';
-			
 			// bring back that form
 			echo '<h2>'.__('File Options').'</h2>';
 			echo '<p>File has '. $prefs['scrib_marc-records_count'] .' records.</p>';
 			$this->options();
-		
+
 		}else{
 			// import with status
 			$count = 0;
@@ -199,7 +192,7 @@ class Scrib_marc {
 				}
 			}
 			echo '</ol>';
-			
+
 			$prefs['scrib_marc-warnings'] = array_merge($prefs['scrib_marc-warnings'], $file->warn);
 			$prefs['scrib_marc-errors'] = array_merge($prefs['scrib_marc-errors'], $file->error);
 			$prefs['scrib_marc-records_harvested'] = $prefs['scrib_marc-records_harvested'] + $count;
@@ -214,12 +207,12 @@ class Scrib_marc {
 				<div class="narrow"><p><?php _e("If your browser doesn't start loading the next page automatically click this link:"); ?> <a href="javascript:nextpage()"><?php _e("Next Records"); ?></a> </p>
 				<script language='javascript'>
 				<!--
-	
+
 				function nextpage() {
 					document.getElementById('myform').submit();
 				}
 				setTimeout( "nextpage()", 1250 );
-	
+
 				//-->
 				</script>
 				</div>
@@ -237,7 +230,7 @@ class Scrib_marc {
 			}
 		}
 	}
-	
+
 	function parse_record($marcrecord){
 		global $scrib;
 
@@ -246,9 +239,12 @@ class Scrib_marc {
 
 		foreach($marcrecord as $fields){
 			foreach($fields as $field){
+
 				// languages
 				if( $field->tagno == '008' ){
 					$atomic['published'][0]['lang'][] = $scrib->meditor_sanitize_punctuation( substr( $field->data, 35,3 ));
+
+					$atomic['published'][0]['cy'][] = preg_replace( '/[^\d]/', '0' , substr( $field->data, 7, 4 ));
 
 				}else if( $field->tagno == '041' ){
 					foreach( $field->subfields as $key => $val ){
@@ -265,28 +261,28 @@ class Scrib_marc {
 						}
 					}
 
-	
+
 				//Standard Numbers
 				}else if($field->tagno == 10){
 					$atomic['idnumbers'][] = array( 'type' => 'lccn', 'id' => $field->subfields['a'] );
-	
+
 				}else if($field->tagno == 20){
 					$temp = trim($field->subfields['a']) . ' ';
 					$temp = preg_replace('/[^0-9x]/i', '', strtolower(substr($temp, 0, strpos($temp, ' '))));
 					if( strlen( $temp ))
 						$atomic['idnumbers'][] = array( 'type' => 'isbn', 'id' => $temp );
-	
+
 				}else if($field->tagno == 22){
 					$temp = trim($field->subfields['a']) . ' ';
 					$temp = preg_replace('/[^0-9x\-]/i', '', strtolower(substr($temp, 0, strpos($temp, ' '))));
 					if( strlen( $temp ))
 						$atomic['idnumbers'][] = array( 'type' => 'issn', 'id' => $temp );
-	
+
 					$temp = trim($field->subfields['y']) . ' ';
 					$temp = preg_replace('/[^0-9x\-]/i', '', strtolower(substr($temp, 0, strpos($temp, ' '))));
 					if( strlen( $temp ))
 						$atomic['idnumbers'][] = array( 'type' => 'issn', 'id' => $temp );
-	
+
 					$temp = trim($field->subfields['z']) . ' ';
 					$temp = preg_replace('/[^0-9x\-]/i', '', strtolower(substr($temp, 0, strpos($temp, ' '))));
 					if( strlen( $temp ))
@@ -318,7 +314,7 @@ class Scrib_marc {
 					}
 					$temp = ereg_replace('[,|\.]$', '', $temp);
 					$atomic['creator'][] = array( 'name' => $scrib->meditor_sanitize_punctuation( $temp ), 'role' => $temp_role ? $temp_role : 'Author' );
-	
+
 					//handle title in name
 					$temp = '';
 					if( $field->subfields['t'] ) {
@@ -343,171 +339,15 @@ class Scrib_marc {
 					if( strlen($temp) >0) {
 						$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( $temp ));
 					}
-	
 
-/*
-				
-				//Call Numbers
-				}else if($field->tagno == 852){ // callnums from InfoCenter
-					$temp = trim($field->subfields['h']);
-					$atomic['callnumber'][] = $temp;
-
-					$temp = trim($field->subfields['b']);
-					$atomic['location'][] = $temp;
-
-					$_acqdate[] = $field->subfields[x]{14}.$field->subfields[x]{15}.$field->subfields[x]{16}.$field->subfields[x]{17} .'-'. $field->subfields[x]{18}.$field->subfields[x]{19} .'-'. $field->subfields[x]{20}.$field->subfields[x]{21};
-
-				//Dates
-				}else if($field->tagno == 260){
-					$temp = str_pad(substr(ereg_replace('[^0-9]', '', $field->subfields['c']), 0, 4), 4 , '5');
-					$atomic['pubyear'][] = $temp;
-				}else if($field->tagno == 005){
-					$atomic['catdate'][] = $field->data{0}.$field->data{1}.$field->data{2}.$field->data{3} .'-'. $field->data{4}.$field->data{5} .'-'. $field->data{6}.$field->data{7};
-				}else if($field->tagno == 008){
-					$atomic['pubyear'][] = substr($field->data, 14, 4);
-				
-				//Notes
-				}else if(($field->tagno > 299) && ($field->tagno < 400)){
-					$atomic['physdesc'][] = implode(' ', array_values($field->subfields));
-				}else if(($field->tagno > 399) && ($field->tagno < 500)){
-					$atomic['title'][] = implode("\n", array_values($field->subfields));
-				}else if(($field->tagno > 799) && ($field->tagno < 841)){
-					$atomic['series'][] = implode("\n", array_values($field->subfields));
-				}else if(($field->tagno > 499) && ($field->tagno < 600)){
-					$line = implode("\n", array_values($field->subfields));
-					if($field->tagno == 504)
-						continue;
-					if($field->tagno == 505){
-						$atomic['contents'][] = str_replace(array('> ','> ','> '), '>', '<li>'. str_replace('--', "</li>\n<li>", trim(str_replace(array(' ', ' ', ' '), ' ', $line))) .'</li>');
-						continue;
-					}
-					$atomic['notes'][] = str_replace(' ', ' ', $line);
-				}
-				
-				//Format
-				if((!$atomic['format']) && ($field->tagno > 239) && ($field->tagno < 246)){
-					$temp = ucwords(strtolower(str_replace('[', '', str_replace(']', '', $field->subfields['h']))));
-					
-					if(eregi('^book', $temp)){
-						$format = 'Book';
-						$formats = 'Books';
-	
-					}else if(eregi('^micr', $temp)){
-						$format = 'Microform';
-	
-					}else if(eregi('^electr', $temp)){
-						$format = 'Website';
-						$formats = 'Websites';
-	
-					}else if(eregi('^vid', $temp)){
-						$format = 'Video';
-					}else if(eregi('^motion', $temp)){
-						$format = 'Video';
-	
-					}else if(eregi('^audi', $temp)){
-						$format = 'Audio';
-					}else if(eregi('^cass', $temp)){
-						$format = 'Audio';
-					}else if(eregi('^phono', $temp)){
-						$format = 'Audio';
-					}else if(eregi('^record', $temp)){
-						$format = 'Audio';
-					}else if(eregi('^sound', $temp)){
-						$format = 'Audio';
-	
-					}else if(eregi('^carto', $temp)){
-						$format = 'Map';
-						$formats = 'Maps';
-					}else if(eregi('^map', $temp)){
-						$format = 'Map';
-						$formats = 'Maps';
-					}else if(eregi('^globe', $temp)){
-						$format = 'Map';
-						$formats = 'Maps';
-	
-					}else if($temp){
-						$format = 'Classroom Material';
-						//$format = $temp;
-					}
-	
-					if(!$formats)
-						$formats = $format;
-					
-					if($format){
-						$atomic['format'][] = $format;
-						$atomic['formats'][] = $formats;
-					}
-				}
-			}
-		}
-
-		if(!$atomic['format'][0]){
-			$atomic['format'][0] = 'Book';
-		}
-
-		if(!$atomic['catdate'][0])
-			$atomic['catdate'][0] = '1984-01-01';
-
-		if($atomic['pubyear'][0] > (date(Y) + 5))
-			$atomic['pubyear'][0] = substr($atomic['catdate'][0],0,4);
-
-		if($atomic['pubyear'][0])
-			$atomic['pubdate'][] = $atomic['pubyear'][0].substr($atomic['catdate'][0],4);
-		
-		if($atomic['alttitle'])
-			$atomic['title'] = array_unique(array_merge($atomic['title'], $atomic['alttitle']));
-
-
-		// sanity check the _acqdate
-		$_acqdate = array_unique($_acqdate);
-		foreach( $_acqdate as $key => $temp )
-			if( strtotime( $temp ) > strtotime( date('Y') + 2 ))
-				unset( $_acqdate[$key] );
-		$_acqdate = array_values( $_acqdate );
-		if( !isset( $_acqdate[0] ))
-			if( isset( $atomic['pubyear'][0] ))
-				$_acqdate[0] = $atomic['pubyear'][0] .'-01-01';
-			else
-				$_acqdate[0] = ( date('Y') - 1 ) .'-01-01';
-		$_acqdate = $_acqdate[0];
-
-		$_sourceid = substr(ereg_replace('[^a-z|0-9]', '', strtolower($_POST['scrib_marc-sourceprefix'])), 0, 2) . trim(eval('return($marcrecord'. str_replace(array('(',')','$'), '', stripslashes($_POST['scrib_marc-sourcefield'])) .');'));
-
-
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
-	
-				
 				//Call Numbers
 				}else if($field->tagno == 50){
-					$atomic['callnumbers'][] = array( 'type' => 'lc', 'number' => implode( ' ', $marc ));
+					$atomic['callnumbers'][] = array( 'type' => 'lc', 'number' => implode( ' ', $field->subfields ));
 				}else if($field->tagno == 82){
 					$atomic['callnumbers'][] = array( 'type' => 'dewey', 'number' => str_replace( '/', '', $field->subfields['a'] ));
-	
+				}else if( $field->tagno > 89 && $field->tagno < 100){
+					$atomic['callnumbers'][] = array( 'number' => str_replace( '/', '', $field->subfields['a'] ));
+
 				//Titles
 				}else if($field->tagno == 130){
 					$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( $field->subfields['a'] ));
@@ -516,7 +356,7 @@ class Scrib_marc {
 					$atomic['title'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( $temp ));
 					$atomic['attribution'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( $field->subfields['c'] ));
 				}else if($field->tagno == 240){
-					$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( implode(' ', array_values( $marc ))));
+					$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( implode(' ', array_values( $field->subfields ))));
 				}else if($field->tagno == 246){
 					$temp = trim(ereg_replace('/$', '', $field->subfields['a']) .' '. trim(ereg_replace('/$', '', $field->subfields['b']) .' '. trim(ereg_replace('/$', '', $field->subfields['n']) .' '. trim(ereg_replace('/$', '', $field->subfields['p'])))));
 					$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( $temp ));
@@ -532,19 +372,19 @@ class Scrib_marc {
 					if (strlen($temp) >0) {
 						$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( $temp ));
 					}
-	
+
 				//Edition
 				}else if($field->tagno == 250){
-					$atomic['published'][0]['edition'] = $scrib->meditor_sanitize_punctuation( implode(' ', $marc));
-	
+					$atomic['published'][0]['edition'] = $scrib->meditor_sanitize_punctuation( implode(' ', $field->subfields));
+
 				//Dates and Publisher
 				}else if($field->tagno == 260){
 					if($field->subfields['b']){
 						$atomic['published'][0]['publisher'][] = $scrib->meditor_sanitize_punctuation($field->subfields['b']);
 					}
-	
+
 					if($field->subfields['c']){
-						$temp ="";
+						$temp = '';
 						//match for year pattern, such as "1997"
 						$matchcount=preg_match('/(\d\d\d\d)/',$field->subfields['c'], $matches);
 						if ($matchcount>0) {
@@ -567,16 +407,12 @@ class Scrib_marc {
 						}
 					}
 				}else if($field->tagno == 5){
-					$_acqdate[] = $line{7}.$line{8}.$line{9}.$line{10} .'-'. $line{11}.$line{12} .'-'. $line{13}.$line{14};
-				}else if($field->tagno == 8){
-					$temp = intval(substr($line, 14, 4));
-					if($temp)
-						$atomic['published'][0]['cy'][] = preg_replace('/[^\d]/', '0' ,substr($line, 14, 4));
-				
+					$_acqdate[] = $field->data{0}.$field->data{1}.$field->data{2}.$field->data{3} .'-'. $field->data{4}.$field->data{5} .'-'. $field->data{6}.$field->data{7};
+
 				//Subjects
 				// tag 600 - Person
 				}else if($field->tagno == '600'){
-	
+
 					$subjtemp = array();
 					foreach( array_map( array( 'scrib', 'meditor_sanitize_punctuation' ), $field->subfields ) as $key => $val ){
 						switch( $key[0] ){
@@ -584,26 +420,26 @@ class Scrib_marc {
 							case 'q':
 								$subjtemp[] = array( 'type' => 'person', 'val' => $val );
 								break;
-	
+
 							case 'v':
 								$subjtemp[] = array( 'type' => 'genre', 'val' => $val );
 								break;
-	
+
 							case 'x':
 								$subjtemp[] = array( 'type' => 'subject', 'val' => $val );
 								break;
-	
+
 							case 'd':
 							case 'y':
 								$subjtemp[] = array( 'type' => 'time', 'val' => $val );
 								break;
-	
+
 							case 'z':
 								$subjtemp[] = array( 'type' => 'place', 'val' => $val );
 								break;
 						}
 					}
-	
+
 				// tag 648 - Time
 				}else if($field->tagno == '648'){
 
@@ -614,24 +450,24 @@ class Scrib_marc {
 							case 'y':
 								$subjtemp[] = array( 'type' => 'time', 'val' => $val );
 								break;
-	
+
 							case 'v':
 								$subjtemp[] = array( 'type' => 'genre', 'val' => $val );
 								break;
-	
+
 							case 'x':
 								$subjtemp[] = array( 'type' => 'subject', 'val' => $val );
 								break;
-	
+
 							case 'z':
 								$subjtemp[] = array( 'type' => 'place', 'val' => $val );
 								break;
 						}
 					}
-	
+
 				// tag 650 - Topical Terms
 				}else if( $field->tagno == '650' ){
-					if( 6 == $line[5] )
+					if( 6 == $field->ind2 )
 						continue;
 
 					$subjtemp = array();
@@ -642,26 +478,26 @@ class Scrib_marc {
 							case 'x':
 								$subjtemp[] = array( 'type' => 'subject', 'val' => $val );
 								break;
-	
+
 							case 'c':
 							case 'z':
 								$subjtemp[] = array( 'type' => 'place', 'val' => $val );
 								break;
-	
+
 							case 'd':
 							case 'y':
 								$subjtemp[] = array( 'type' => 'time', 'val' => $val );
 								break;
-	
+
 							case 'v':
 								$subjtemp[] = array( 'type' => 'genre', 'val' => $val );
 								break;
 						}
 					}
-	
+
 				// tag 651 - Geography
 				}else if($field->tagno == '651'){
-	
+
 					$subjtemp = array();
 					foreach( array_map( array( 'scrib', 'meditor_sanitize_punctuation' ), $field->subfields ) as $key => $val ){
 						switch( $key[0] ){
@@ -669,29 +505,29 @@ class Scrib_marc {
 							case 'z':
 								$subjtemp[] = array( 'type' => 'place', 'val' => $val );
 								break;
-	
+
 							case 'v':
 								$subjtemp[] = array( 'type' => 'genre', 'val' => $val );
 								break;
-	
+
 							case 'e':
 							case 'x':
 								$subjtemp[] = array( 'type' => 'subject', 'val' => $val );
 								break;
-	
+
 							case 'y':
 								$subjtemp[] = array( 'type' => 'time', 'val' => $val );
 								break;
-	
+
 							case 'z':
 								$subjtemp[] = array( 'type' => 'place', 'val' => $val );
 								break;
 						}
 					}
-	
+
 				// tag 654 - Topical Terms
 				}else if($field->tagno == '654'){
-	
+
 					$subjtemp = array();
 					foreach( array_map( array( 'scrib', 'meditor_sanitize_punctuation' ), $field->subfields ) as $key => $val ){
 						switch( $key[0] ){
@@ -704,17 +540,17 @@ class Scrib_marc {
 							case 'h':
 								$subjtemp[] = array( 'type' => 'subject', 'val' => $val );
 								break;
-	
+
 							case 'y':
 								$subjtemp[] = array( 'type' => 'time', 'val' => $val );
 								break;
-	
+
 							case 'z':
 								$subjtemp[] = array( 'type' => 'place', 'val' => $val );
 								break;
 						}
 					}
-	
+
 				// tag 655 - Genre
 				}else if($field->tagno == '655'){
 
@@ -727,21 +563,21 @@ class Scrib_marc {
 							case 'v':
 								$subjtemp[] = array( 'type' => 'subject', 'val' => $val );
 								break;
-	
+
 							case 'x':
 								$subjtemp[] = array( 'type' => 'subject', 'val' => $val );
 								break;
-	
+
 							case 'y':
 								$subjtemp[] = array( 'type' => 'time', 'val' => $val );
 								break;
-	
+
 							case 'z':
 								$subjtemp[] = array( 'type' => 'place', 'val' => $val );
 								break;
 						}
 					}
-	
+
 				// tag 662 - Geography
 				}else if($field->tagno == '662'){
 
@@ -757,16 +593,16 @@ class Scrib_marc {
 							case 'h':
 								$subjtemp[] = array( 'type' => 'place', 'val' => $val );
 								break;
-	
+
 							case 'e':
 								$subjtemp[] = array( 'type' => 'subject', 'val' => $val );
 								break;
 						}
 					}
-	
+
 				// everything else
 				}else if(($field->tagno > 599) && ($field->tagno < 700)){
-					if( 6 == $line[5] )
+					if( 6 == $field->ind2 )
 						continue;
 
 					$subjtemp = array();
@@ -777,43 +613,56 @@ class Scrib_marc {
 							case 'x':
 								$subjtemp[] = array( 'type' => 'subject', 'val' => $val );
 								break;
-	
+
 							case 'v':
 							case 'k':
 								$subjtemp[] = array( 'type' => 'genre', 'val' => $val );
 								break;
-	
+
 							case 'y':
 								$subjtemp[] = array( 'type' => 'time', 'val' => $val );
 								break;
-	
+
 							case 'z':
 								$subjtemp[] = array( 'type' => 'place', 'val' => $val );
 								break;
 						}
 					}
-	
-	
+
+
+				//Sagebrush/Infocentre-specific features
+				}else if($field->tagno == 852){
+					$atomic['callnumbers'][] = array( 'number' => str_replace( '/', '', $field->subfields['h'] ));
+
+					$_acqdate[] = $field->subfields['x']{14}.$field->subfields['x']{15}.$field->subfields['x']{16}.$field->subfields['x']{16} .'-'. $field->subfields['x']{18}.$field->subfields['x']{19} .'-'. $field->subfields['x']{20}.$field->subfields['x']{21};
+
 				//URLs
 				}else if($field->tagno == 856){
-					$temp['href'] = $temp['title'] = str_replace(' ', '', $field->subfields['u']);
+					$temp = array();
+					$temp['href'] = $temp['title'] = preg_replace('/\s+/', '', $field->subfields['u'] );
+
 					$temp['title'] = trim( parse_url( $temp['href'] , PHP_URL_HOST ), 'www.' );
+					if($field->subfields['0'])
+						$temp['title'] = $field->subfields['0'];
 					if($field->subfields['3'])
 						$temp['title'] = $field->subfields['3'];
 					if($field->subfields['z'])
 						$temp['title'] = $field->subfields['z'];
+					if($field->subfields['y'])
+						$temp['title'] = $field->subfields['y'];
+
 					$atomic['linked_urls'][] = array( 'name' => $temp['title'], 'href' => $temp['href'] );
-	
+
 				//Notes
-	//			}else if(($field->tagno > 299) && ($field->tagno < 400)){
-	//				$atomic['physdesc'][] = implode(' ', array_values($marc));
-	
+//				}else if(($field->tagno > 299) && ($field->tagno < 400)){
+//					$atomic['physdesc'][] = implode(' ', array_values($field->subfields));
+
 				}else if(($field->tagno > 399) && ($field->tagno < 490)){
-					$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( implode(' ', array_values( $marc ))));
-	
+					$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( implode(' ', array_values( $field->subfields ))));
+
 				}else if(($field->tagno > 799) && ($field->tagno < 841)){
-					$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( implode(' ', array_values( $marc ))));
-	
+					$atomic['alttitle'][] = array( 'a' => $scrib->meditor_sanitize_punctuation( implode(' ', array_values( $field->subfields ))));
+
 				}else if(($field->tagno > 499) && ($field->tagno < 600)){
 					$line = implode( "\n", array_values( $field->subfields ));
 					if($field->tagno == 504)
@@ -822,12 +671,12 @@ class Scrib_marc {
 						$atomic['text'][] = array( 'type' => 'contents', 'content' => ( '<ul><li>'. implode( "</li>\n<li>", array_map( array( 'scrib', 'meditor_sanitize_punctuation' ), explode( '--', str_replace( array( '|t', '|r' , '|g' ), ' ', preg_replace( '/-[\s]+-/', '--', $line )))) ) .'</li></ul>' ));
 						continue;
 					}
-	
+
 					//strip the subfield delimiter and codes
 					$atomic['text'][] = array( 'type' => 'notes', 'content' => $scrib->meditor_sanitize_punctuation( $line ));
 				}
-				
-	
+
+
 				// pick up the subjects parsed above
 				if( count( $subjtemp )){
 					$temp = array();
@@ -837,25 +686,25 @@ class Scrib_marc {
 					}
 					$atomic['subject'][] = $temp;
 				}
-	
+
 				//Format
 				if(($field->tagno > 239) && ($field->tagno < 246)){
 					$temp = ucwords(strtolower(str_replace('[', '', str_replace(']', '', $field->subfields['h']))));
-					
+
 					if(eregi('^book', $temp)){
 						$atomic['format'][] = array( 'a' => 'Book' );
-	
+
 					}else if(eregi('^micr', $temp)){
 						$atomic['format'][] = array( 'a' => 'Microform' );
-	
+
 					}else if(eregi('^electr', $temp)){
 						$atomic['format'][] = array( 'a' => 'E-Resource' );
-	
+
 					}else if(eregi('^vid', $temp)){
 						$atomic['format'][] = array( 'a' => 'Video' );
 					}else if(eregi('^motion', $temp)){
 						$atomic['format'][] = array( 'a' => 'Video' );
-	
+
 					}else if(eregi('^audi', $temp)){
 						$atomic['format'][] = array( 'a' => 'Audio' );
 						$format = 'Audio';
@@ -867,7 +716,7 @@ class Scrib_marc {
 						$atomic['format'][] = array( 'a' => 'Audio', 'b' => 'Phonograph' );
 					}else if(eregi('^sound', $temp)){
 						$atomic['format'][] = array( 'a' => 'Audio' );
-	
+
 					}else if(eregi('^carto', $temp)){
 						$atomic['format'][] = array( 'a' => 'Map' );
 					}else if(eregi('^map', $temp)){
@@ -876,10 +725,10 @@ class Scrib_marc {
 						$atomic['format'][] = array( 'a' => 'Map' );
 					}
 				}
-	
-				if($field->tagno == '008' && (substr($lineray[2], 22,1) == 'p' || substr($lineray[2], 22,1) == 'n')){
+
+				if( $field->tagno == '008' && ( $field->data[22] == 'p' || $field->data[22] == 'n' ))
 					$atomic['format'][] = array( 'a' => 'Journal' );
-				}
+
 			}
 		}
 		// end the big loop
@@ -918,7 +767,19 @@ class Scrib_marc {
 				$atomic['title'][ $key ]['a'] = ucwords( $val['a'] );
 
 		// insert the sourceid
-		$_sourceid = $prefs['sourceprefix'] . $bibn;
+		if( isset( $marcrecord['852'][0]->subfields['p'] ))
+			$_sourceid[] = $marcrecord['852'][0]->subfields['p'];
+		if( isset( $marcrecord['001'][0]->data ))
+			$_sourceid[] = $marcrecord['001'][0]->data;
+		if( isset( $marcrecord['000'][0]->data ))
+			$_sourceid[] = $marcrecord['000'][0]->data;
+		if( isset( $marcrecord['999'][0]->subfields['a'] ))
+			$_sourceid[] = $marcrecord['999'][0]->subfields['a'];
+		if( isset( $marcrecord['008']->data ))
+			$_sourceid[] = md5( $marcrecord['008']->data );
+
+		$_sourceid = str_pad( substr( preg_replace( '/[^a-z]/', '', strtolower( $_POST['scrib_marc-sourceprefix'] )), 0, 2), 2, 'a' ) . array_shift( array_filter( $_sourceid ));
+
 		$atomic['idnumbers'][] = array( 'type' => 'sourceid', 'id' => $_sourceid );
 
 		// sanity check the _acqdate
@@ -957,6 +818,12 @@ class Scrib_marc {
 	function done(){
 		$prefs = get_option('scrib_marcimporter');
 
+		$this->id = (int) $_GET['id'];
+		$this->file = get_attached_file($this->id);
+
+		if( $this->file )
+			wp_import_cleanup($this->id);
+
 		// click next
 		echo '<div class="narrow">';
 
@@ -974,7 +841,7 @@ class Scrib_marc {
 			echo '<ol><li>';
 			echo implode($prefs['scrib_marc-errors'], '</li><li>');
 			echo '</li></ol>';
-		}		
+		}
 
 		echo '<h3 id="complete">'.__('Processing complete.').'</h3>';
 		echo '<p>'. $prefs['scrib_marc-records_harvested'] .' of '. $prefs['scrib_marc-records_count'] .' '.__('records harvested.').' with '. count($prefs['scrib_marc-warnings']) .' <a href="#warnings">warnings</a> and '. count($prefs['scrib_marc-errors']) .' <a href="#errors">errors</a>.</p>';
