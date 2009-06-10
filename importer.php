@@ -3,7 +3,7 @@
 Plugin Name: Scriblio MARC File Connector
 Plugin URI: http://about.scriblio.net/
 Description: Imports MARC records into Scriblio, provides functions used by other importers.
-Version: .02a
+Version: 2.7 b2
 Author: Casey Bisson
 Author URI: http://maisonbisson.com/blog/
 */
@@ -118,6 +118,14 @@ class Scrib_marc {
 		echo '<form name="myform" id="myform" action="admin.php?import='. $this->importer_code .'&amp;id='. $this->id .'&amp;step=2" method="post">';
 ?>
 <p><label for="scrib_marc-sourceprefix">The source prefix:<br /><input type="text" name="scrib_marc-sourceprefix" id="scrib_marc-sourceprefix" value="<?php echo attribute_escape( $prefs['scrib_marc-sourceprefix'] ); ?>" /><br />example: bb (must be two characters, a-z and 0-9 accepted)</label></p>
+<p><label for="scrib_marc-sourceidfield">The field to use as source ID:<br /><select name="scrib_marc-sourceidfield" id="scrib_marc-sourceidfield" >
+<option value="000" <?php selected('000', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('000') ?></option>
+<option value="001" <?php selected('001', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('001') ?></option>
+<option value="852p" <?php selected('852p', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('852$p') ?></option>
+<option value="999a" <?php selected('999a', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('999$a') ?></option>
+<option value="none" <?php selected('none', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('none') ?></option>
+</select>
+</label></p>
 <p><label for="scrib_marc-record_start">Start with record number:<br /><input type="text" name="scrib_marc-record_start" id="scrib_marc-record_start" value="<?php echo attribute_escape( $prefs['scrib_marc-record_start'] ); ?>" /></label></p>
 <p><label for="scrib_marc-debug"><input type="checkbox" name="scrib_marc-debug" id="scrib_marc-debug" value="1" /> Turn on debug mode.</label></p>
 <?php
@@ -149,6 +157,7 @@ class Scrib_marc {
 		// save these settings so we can try them again later
 		$prefs = get_option('scrib_marcimporter');
 		$prefs['scrib_marc-sourceprefix'] = stripslashes($_POST['scrib_marc-sourceprefix']);
+		$prefs['scrib_marc-sourceidfield'] = stripslashes($_POST['scrib_marc-sourceidfield']);
 		update_option('scrib_marcimporter', $prefs);
 
 		error_reporting(E_ERROR);
@@ -264,7 +273,7 @@ class Scrib_marc {
 
 				//Standard Numbers
 				}else if($field->tagno == 10){
-					$atomic['idnumbers'][] = array( 'type' => 'lccn', 'id' => $field->subfields['a'] );
+					$atomic['idnumbers'][] = array( 'type' => 'lccn', 'id' => trim( $field->subfields['a'] ));
 
 				}else if($field->tagno == 20){
 					$temp = trim($field->subfields['a']) . ' ';
@@ -767,18 +776,30 @@ class Scrib_marc {
 				$atomic['title'][ $key ]['a'] = ucwords( $val['a'] );
 
 		// insert the sourceid
-		if( isset( $marcrecord['852'][0]->subfields['p'] ))
-			$_sourceid[] = $marcrecord['852'][0]->subfields['p'];
-		if( isset( $marcrecord['001'][0]->data ))
-			$_sourceid[] = $marcrecord['001'][0]->data;
-		if( isset( $marcrecord['000'][0]->data ))
-			$_sourceid[] = $marcrecord['000'][0]->data;
-		if( isset( $marcrecord['999'][0]->subfields['a'] ))
-			$_sourceid[] = $marcrecord['999'][0]->subfields['a'];
-		if( isset( $marcrecord['008']->data ))
-			$_sourceid[] = md5( $marcrecord['008']->data );
+		$temp = str_pad( substr( preg_replace( '/[^a-z]/', '', strtolower( $_POST['scrib_marc-sourceprefix'] )), 0, 2), 2, 'a' );
 
-		$_sourceid = str_pad( substr( preg_replace( '/[^a-z]/', '', strtolower( $_POST['scrib_marc-sourceprefix'] )), 0, 2), 2, 'a' ) . array_shift( array_filter( $_sourceid ));
+		switch( $_POST['scrib_marc-sourceidfield'] ){
+			case '000':
+				$_sourceid = $temp . $marcrecord['000'][0]->data;
+				break;
+
+			case '001':
+				$_sourceid = $temp . $marcrecord['001'][0]->data;
+				break;
+
+			case '852p':
+				$_sourceid = $temp . $marcrecord['852'][0]->subfields['p'];
+				break;
+
+			case '999a':
+				$_sourceid = $temp . $marcrecord['999'][0]->subfields['a'];
+				break;
+
+			default:
+				$_sourceid = $temp . md5( print_r( $marcrecord, TRUE ));
+				break;
+		}
+
 
 		$atomic['idnumbers'][] = array( 'type' => 'sourceid', 'id' => $_sourceid );
 
