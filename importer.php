@@ -2,8 +2,8 @@
 /*
 Plugin Name: Scriblio MARC File Connector
 Plugin URI: http://about.scriblio.net/
-Description: Imports MARC records into Scriblio, provides functions used by other importers.
-Version: 2.7 b2
+Description: Imports records from a MARC file.
+Version: 2.7 b3
 Author: Casey Bisson
 Author URI: http://maisonbisson.com/blog/
 */
@@ -28,7 +28,7 @@ Author URI: http://maisonbisson.com/blog/
 class Scrib_marc {
 	var $importer_code = 'scribmarc';
 	var $importer_name = 'Scriblio MARC File Connector';
-	var $importer_desc = 'Imports MARC records into Scriblio, provides functions used by other importers. <a href="http://about.scriblio.net/wiki">Documentation here</a>.';
+	var $importer_desc = 'Imports records from a MARC file. <a href="http://about.scriblio.net/wiki">Documentation here</a>.';
 
 	// Function that will handle the wizard-like behaviour
 	function dispatch() {
