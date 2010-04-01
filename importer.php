@@ -7,7 +7,7 @@ Version: 2.7 b3
 Author: Casey Bisson
 Author URI: http://maisonbisson.com/blog/
 */
-/* Copyright 2007-2009 Casey Bisson & Plymouth State University
+/* Copyright 2007-2010 Casey Bisson & Plymouth State University
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -45,7 +45,8 @@ class Scrib_marc {
 				$this->greet();
 				break;
 			case 1 :
-				check_admin_referer('import-upload');
+				if( empty( $_POST['scrib_marc-sourcefile'] ))
+					check_admin_referer('import-upload');
 				$this->accept_file();
 				break;
 			case 2:
@@ -75,7 +76,23 @@ class Scrib_marc {
 		echo '<p>'.__('This has not been tested much. Mileage may vary.').'</p>';
 
 		echo '<br /><br />';
+
 		wp_import_upload_form("admin.php?import=$this->importer_code&amp;step=1");
+		echo '<br /><br />';
+
+		$attachments = (array) get_posts( array( 'post_type' => 'attachment' ));
+		if( count( $attachments ))
+		{
+			echo '<form name="myform" id="myform" action="admin.php?import='. $this->importer_code .'&amp;id='. $this->id .'&amp;step=1" method="post"><p><label for="scrib_marc-sourceidfield">Or select a previously uploaded file:<br /><select name="scrib_marc-sourcefile" id="scrib_marc-sourcefile" >';
+
+			foreach( $attachments as $attachment )
+			{
+				echo '<option value="'. $attachment->ID .'">'. $attachment->post_title .'</option>';
+			}
+
+			echo '</select></label></p><p class="submit"><input type="submit" name="next" value="Use file" /></p></form>';
+		}
+
 		echo '</div>';
 	}
 
@@ -87,10 +104,10 @@ class Scrib_marc {
 
 	function accept_file(){
 		$prefs = get_option('scrib_marcimporter');
-		$prefs['scrib_marc-warnings'] = array();
-		$prefs['scrib_marc-errors'] = array();
-		$prefs['scrib_marc-record_start'] = 0;
-		$prefs['scrib_marc-records_harvested'] = 0;
+		$prefs['warnings'] = array();
+		$prefs['errors'] = array();
+		$prefs['record_start'] = 0;
+		$prefs['records_harvested'] = 0;
 		update_option('scrib_marcimporter', $prefs);
 
 		$this->options();
@@ -99,15 +116,25 @@ class Scrib_marc {
 	function options(){
 		global $file;
 
-		if(empty($this->id)){
-			$file = wp_import_handle_upload();
-			if(  isset($file['error']) ) {
-				echo '<p>'.__('Sorry, there has been an error.').'</p>';
-				echo '<p><strong>' . $file['error'] . '</strong></p>';
-				return;
+		if( empty( $this->id ))
+		{
+			if( ! empty( $_POST['scrib_marc-sourcefile'] ))
+			{
+				$this->id = (int) $_POST['scrib_marc-sourcefile'];
+				$this->file = get_attached_file( $this->id );
 			}
-			$this->file = $file['file'];
-			$this->id = (int) $file['id'];
+			else
+			{
+				$file = wp_import_handle_upload();
+				if( isset( $file['error'] ))
+				{
+					echo '<p>'.__('Sorry, there has been an error.').'</p>';
+					echo '<p><strong>' . $file['error'] . '</strong></p>';
+					return;
+				}
+				$this->file = $file['file'];
+				$this->id = (int) $file['id'];
+			}
 		}
 
 		$prefs = get_option('scrib_marcimporter');
@@ -117,25 +144,35 @@ class Scrib_marc {
 
 		echo '<form name="myform" id="myform" action="admin.php?import='. $this->importer_code .'&amp;id='. $this->id .'&amp;step=2" method="post">';
 ?>
-<p><label for="scrib_marc-sourceprefix">The source prefix:<br /><input type="text" name="scrib_marc-sourceprefix" id="scrib_marc-sourceprefix" value="<?php echo attribute_escape( $prefs['scrib_marc-sourceprefix'] ); ?>" /><br />example: bb (must be two characters, a-z and 0-9 accepted)</label></p>
+<p><label for="scrib_marc-sourceprefix">The source prefix:<br /><input type="text" name="scrib_marc-sourceprefix" id="scrib_marc-sourceprefix" value="<?php echo attribute_escape( $prefs['sourceprefix'] ); ?>" /><br />example: bb (must be two characters, a-z and 0-9 accepted)</label></p>
 <p><label for="scrib_marc-sourceidfield">The field to use as source ID:<br /><select name="scrib_marc-sourceidfield" id="scrib_marc-sourceidfield" >
-<option value="000" <?php selected('000', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('000') ?></option>
-<option value="001" <?php selected('001', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('001') ?></option>
-<option value="852p" <?php selected('852p', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('852$p') ?></option>
-<option value="999a" <?php selected('999a', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('999$a') ?></option>
-<option value="none" <?php selected('none', $prefs['scrib_marc-sourceidfield'] ); ?>><?php _e('none') ?></option>
+<option value="000" <?php selected('000', $prefs['sourceidfield'] ); ?>><?php _e('000') ?></option>
+<option value="001" <?php selected('001', $prefs['sourceidfield'] ); ?>><?php _e('001') ?></option>
+<option value="852p" <?php selected('852p', $prefs['sourceidfield'] ); ?>><?php _e('852$p') ?></option>
+<option value="999a" <?php selected('999a', $prefs['sourceidfield'] ); ?>><?php _e('999$a') ?></option>
+<option value="none" <?php selected('none', $prefs['sourceidfield'] ); ?>><?php _e('none') ?></option>
 </select>
 </label></p>
-<p><label for="scrib_marc-record_start">Start with record number:<br /><input type="text" name="scrib_marc-record_start" id="scrib_marc-record_start" value="<?php echo attribute_escape( $prefs['scrib_marc-record_start'] ); ?>" /></label></p>
+
+<p><label for="scrib_marc-record_start">Start with record number:<br /><input type="text" name="scrib_marc-record_start" id="scrib_marc-record_start" value="<?php echo attribute_escape( $prefs['record_start'] ); ?>" /></label></p>
+
+<p><label for="scrib_marc-capitalize_titles"><input type="checkbox" name="scrib_marc-capitalize_titles" id="scrib_marc-capitalize_titles" value="1" <?php if( !empty( $prefs['capitalize_titles'] )) echo 'CHECKED'; ?> /> Capitalize titles.</label></p>
+
+<p><label for="scrib_marc-save_category">Save records in category:<br /><input name="scrib_marc-save_category" type="text" id="scrib_marc-save_category" value="<?php echo !empty( $prefs['save_category'] ) ? format_to_edit( $prefs['save_category'] ) : __( 'Catalog' ); ?>" /></label></p>
+
+<p><label for="scrib_marc-save_user">Save records as user:<br /><input name="scrib_marc-save_user" type="text" id="scrib_marc-save_user" value="<?php echo !empty( $prefs['save_user'] ) ? format_to_edit( $prefs['save_user'] ) : __( 'cataloger' ); ?>" /></label></p>
+
 <p><label for="scrib_marc-debug"><input type="checkbox" name="scrib_marc-debug" id="scrib_marc-debug" value="1" /> Turn on debug mode.</label></p>
+
 <?php
 		echo '<p class="submit"><input type="submit" name="next" value="'.__('Next &raquo;').'" /></p>';
 		echo '</form>';
 		echo '</div>';
 	}
 
-	function parse_file(){
-		$interval = 2500;
+	function parse_file()
+	{
+		$interval = 1000;
 		if( empty( $_REQUEST[ 'scrib_marc-record_start' ] ))
 			$n = 0;
 		else
@@ -146,7 +183,7 @@ class Scrib_marc {
 		ignore_user_abort(TRUE);
 
 		$this->id = (int) $_GET['id'];
-		$this->file = get_attached_file($this->id);
+		$this->file = get_attached_file( $this->id );
 
 		if( empty( $_POST['scrib_marc-sourceprefix'] ) || empty( $this->file )){
 			echo '<p>'.__('Sorry, there has been an error.').'</p>';
@@ -156,9 +193,30 @@ class Scrib_marc {
 
 		// save these settings so we can try them again later
 		$prefs = get_option('scrib_marcimporter');
-		$prefs['scrib_marc-sourceprefix'] = stripslashes($_POST['scrib_marc-sourceprefix']);
-		$prefs['scrib_marc-sourceidfield'] = stripslashes($_POST['scrib_marc-sourceidfield']);
-		update_option('scrib_marcimporter', $prefs);
+		$prefs['sourceprefix'] = stripslashes($_POST['scrib_marc-sourceprefix']);
+		$prefs['sourceidfield'] = stripslashes($_POST['scrib_marc-sourceidfield']);
+
+		$prefs['capitalize_titles'] = isset( $_POST['scrib_marc-capitalize_titles'] );
+
+		$prefs['save_category'] = wp_filter_nohtml_kses($_POST['scrib_marc-save_category']);
+		$prefs['save_user'] = sanitize_title_with_dashes($_POST['scrib_marc-save_user']);
+
+		// setup the catalog author, if it doesn't exist
+		if( ! get_user_by( 'login' , $prefs['save_user'] ))
+		{
+			// create the catalog author
+			$random_password = md5( uniqid( microtime() ));
+			$user_id = wp_create_user( $prefs['save_user'] , $random_password , $prefs['save_user'] .'@cataloger.scriblio.net' );
+			$user = new WP_User( $user_id );
+			$user->set_role( 'contributor' );
+			
+			$prefs['save_user_id'] = $user_id;
+		}
+		else
+		{
+			$prefs['save_user_id'] = get_user_by( 'login' , $prefs['save_user'] )->ID;
+		}
+		update_option( 'scrib_marcimporter', $prefs );
 
 		error_reporting(E_ERROR);
 
@@ -166,11 +224,11 @@ class Scrib_marc {
 		require_once(ABSPATH . PLUGINDIR .'/'. plugin_basename(dirname(__FILE__)) .'/php-marc.php');
 		$file = new File($this->file);
 
-		$prefs['scrib_marc-records_count'] = count($file->raw);
+		$prefs['records_count'] = count($file->raw);
 		update_option('scrib_marcimporter', $prefs);
 
-		if($n > 0 || count($file->raw) > $interval)
-			$file->raw = array_slice($file->raw, $n, $interval);
+		if( $n > 0 || count( $file->raw ) > $interval )
+			$file->raw = array_slice( $file->raw, $n, $interval );
 
 		if(!empty($_POST['scrib_marc-debug'])){
 
@@ -185,7 +243,7 @@ class Scrib_marc {
 
 			// bring back that form
 			echo '<h2>'.__('File Options').'</h2>';
-			echo '<p>File has '. $prefs['scrib_marc-records_count'] .' records.</p>';
+			echo '<p>File has '. $prefs['records_count'] .' records.</p>';
 			$this->options();
 
 		}else{
@@ -193,22 +251,24 @@ class Scrib_marc {
 			$count = 0;
 			echo "<p>Reading the file and parsing ". $file->num_records() ." records. Please be patient.<br /><br /></p>";
 			echo '<ol>';
-			while($file->pointer < count($file->raw)){
-				if($record = $file->next()){
-					$bibr = &$this->parse_record($record->fields());
+
+			while( $file->pointer < count( $file->raw )){
+				if($record = $file->next())
+				{
+					$bibr = &$this->parse_record( $record->fields() );
 					echo "<li>{$bibr['the_title']} {$bibr['the_sourceid']}</li>";
 					$count++;
 				}
 			}
 			echo '</ol>';
 
-			$prefs['scrib_marc-warnings'] = array_merge($prefs['scrib_marc-warnings'], $file->warn);
-			$prefs['scrib_marc-errors'] = array_merge($prefs['scrib_marc-errors'], $file->error);
-			$prefs['scrib_marc-records_harvested'] = $prefs['scrib_marc-records_harvested'] + $count;
+//			$prefs['warnings'] = array_merge($prefs['warnings'], $file->warn);
+			$prefs['errors'] = array_merge($prefs['errors'], $file->error);
+			$prefs['records_harvested'] = $prefs['records_harvested'] + $count;
 			update_option('scrib_marcimporter', $prefs);
 
 			if(count($file->raw) >= $interval){
-				$prefs['scrib_marc-record_start'] = $n + $interval;
+				$prefs['record_start'] = $n + $interval;
 				update_option('scrib_marcimporter', $prefs);
 
 				$this->options();
@@ -242,6 +302,8 @@ class Scrib_marc {
 
 	function parse_record($marcrecord){
 		global $scrib;
+
+		$prefs = get_option('scrib_marcimporter');
 
 		$spare_keys = array( 'a', 'b', 'c', 'd', 'e', 'f', 'g' );
 		$atomic = $subjtemp = array();
@@ -827,6 +889,8 @@ class Scrib_marc {
 			$atomic['_sourceid'] = $_sourceid;
 			$atomic['_title'] = $atomic['marcish']['title'][0]['a'];
 			$atomic['_idnumbers'] = $atomic['marcish']['idnumbers'];
+			$atomic['_userid'] = $prefs['save_user_id'];
+			$atomic['_category'] = $prefs['save_category'];
 
 			$scrib->import_insert_harvest( $atomic );
 			return( $atomic );
@@ -848,24 +912,24 @@ class Scrib_marc {
 		// click next
 		echo '<div class="narrow">';
 
-		if(count($prefs['scrib_marc-warnings'])){
+		if(count($prefs['warnings'])){
 			echo '<h3 id="warnings">Warnings</h3>';
 			echo '<a href="#complete">bottom</a> &middot; <a href="#errors">errors</a>';
 			echo '<ol><li>';
-			echo implode($prefs['scrib_marc-warnings'], '</li><li>');
+			echo implode($prefs['warnings'], '</li><li>');
 			echo '</li></ol>';
 		}
 
-		if(count($prefs['scrib_marc-errors'])){
+		if(count($prefs['errors'])){
 			echo '<h3 id="errors">Errors</h3>';
 			echo '<a href="#complete">bottom</a> &middot; <a href="#warnings">warnings</a>';
 			echo '<ol><li>';
-			echo implode($prefs['scrib_marc-errors'], '</li><li>');
+			echo implode($prefs['errors'], '</li><li>');
 			echo '</li></ol>';
 		}
 
 		echo '<h3 id="complete">'.__('Processing complete.').'</h3>';
-		echo '<p>'. $prefs['scrib_marc-records_harvested'] .' of '. $prefs['scrib_marc-records_count'] .' '.__('records harvested.').' with '. count($prefs['scrib_marc-warnings']) .' <a href="#warnings">warnings</a> and '. count($prefs['scrib_marc-errors']) .' <a href="#errors">errors</a>.</p>';
+		echo '<p>'. $prefs['records_harvested'] .' of '. $prefs['records_count'] .' '.__('records harvested.').' with '. count($prefs['warnings']) .' <a href="#warnings">warnings</a> and '. count($prefs['errors']) .' <a href="#errors">errors</a>.</p>';
 		echo '</div>';
 	}
 
