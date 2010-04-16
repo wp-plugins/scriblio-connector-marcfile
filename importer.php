@@ -938,11 +938,7 @@ class Scrib_marc {
 
 	// Default constructor
 	function Scrib_marc() {
-		global $wpdb;
-
-		$this->harvest_table = $wpdb->prefix . 'scrib_harvest';
-
-		register_taxonomy( 'sourceid', 'post' );
+//		register_taxonomy( 'sourceid', 'post' );
 	}
 }
 
