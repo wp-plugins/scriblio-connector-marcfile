@@ -77,6 +77,9 @@ class Scrib_marc {
 
 		echo '<br /><br />';
 
+		global $scrib;
+		$scrib->import_create_harvest_table();
+
 		wp_import_upload_form("admin.php?import=$this->importer_code&amp;step=1");
 		echo '<br /><br />';
 
@@ -172,7 +175,7 @@ class Scrib_marc {
 
 	function parse_file()
 	{
-		$interval = 1000;
+		$interval = 1000; 
 		if( empty( $_REQUEST[ 'scrib_marc-record_start' ] ))
 			$n = 0;
 		else
